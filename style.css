@@ -415,6 +415,18 @@ body {
     text-align: center;
 }
 
+.online-indicator {
+    font-size: 8px;
+    margin-left: 5px;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
 .chat-container {
     background: white;
     border-radius: 12px;
