@@ -38,7 +38,15 @@
             </div>
 
             <div class="tasks-section">
-                <h2>任务列表</h2>
+                <div class="tasks-header">
+                    <h2>任务列表</h2>
+                    <div class="task-filters">
+                        <button class="filter-btn active" data-filter="all">全部</button>
+                        <button class="filter-btn" data-filter="pending">进行中</button>
+                        <button class="filter-btn" data-filter="completed">已完成</button>
+                        <button class="filter-btn" data-filter="my">我的任务</button>
+                    </div>
+                </div>
                 <div id="tasksList" class="tasks-list">
                     <!-- 任务将在这里动态生成 -->
                 </div>
@@ -82,6 +90,19 @@
             </div>
             <div class="modal-body">
                 <div id="modalContent"></div>
+                
+                <!-- 任务评论区域 -->
+                <div class="comments-section">
+                    <h4>任务评论</h4>
+                    <div id="commentsList" class="comments-list">
+                        <!-- 评论将在这里显示 -->
+                    </div>
+                    <div class="comment-form">
+                        <textarea id="commentInput" placeholder="添加评论..." maxlength="300"></textarea>
+                        <button id="addComment" class="btn-primary">发表评论</button>
+                    </div>
+                </div>
+                
                 <div class="modal-actions">
                     <button id="completeTask" class="btn-success">标记完成</button>
                     <button id="deleteTask" class="btn-danger">删除任务</button>

@@ -4,6 +4,9 @@ let currentChatUser = '';
 let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
 let users = JSON.parse(localStorage.getItem('users')) || [];
 let messages = JSON.parse(localStorage.getItem('messages')) || {};
+let currentFilter = 'all';
+let unreadMessages = JSON.parse(localStorage.getItem('unreadMessages')) || {};
+let comments = JSON.parse(localStorage.getItem('comments')) || {};
 
 // DOM 元素
 const usernameInput = document.getElementById('username');
@@ -28,6 +31,10 @@ const modalContent = document.getElementById('modalContent');
 const closeModalBtn = document.getElementById('closeModal');
 const completeTaskBtn = document.getElementById('completeTask');
 const deleteTaskBtn = document.getElementById('deleteTask');
+const filterBtns = document.querySelectorAll('.filter-btn');
+const commentsList = document.getElementById('commentsList');
+const commentInput = document.getElementById('commentInput');
+const addCommentBtn = document.getElementById('addComment');
 
 // 当前选中的任务
 let selectedTask = null;
@@ -87,6 +94,22 @@ function setupEventListeners() {
         }
     });
     closeChatBtn.addEventListener('click', closeChat);
+
+    // 任务筛选
+    filterBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const filter = this.dataset.filter;
+            setFilter(filter);
+        });
+    });
+
+    // 评论功能
+    addCommentBtn.addEventListener('click', addComment);
+    commentInput.addEventListener('keypress', function(e) {
+        if (e.ctrlKey && e.key === 'Enter') {
+            addComment();
+        }
+    });
 
     // 模态框
     closeModalBtn.addEventListener('click', closeModal);
@@ -181,20 +204,67 @@ function addTask() {
     showNotification('任务发布成功！', 'success');
 }
 
+// 设置筛选器
+function setFilter(filter) {
+    currentFilter = filter;
+    
+    // 更新筛选按钮状态
+    filterBtns.forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.filter === filter) {
+            btn.classList.add('active');
+        }
+    });
+    
+    renderTasks();
+}
+
 // 渲染任务列表
 function renderTasks() {
     if (!tasksList) return;
 
-    // 过滤掉已完成的任务
-    const pendingTasks = tasks.filter(task => task.status === 'pending');
+    // 根据筛选条件过滤任务
+    let filteredTasks = tasks;
     
-    if (pendingTasks.length === 0) {
-        tasksList.innerHTML = '<div class="no-tasks">暂无任务</div>';
+    switch (currentFilter) {
+        case 'pending':
+            filteredTasks = tasks.filter(task => task.status === 'pending');
+            break;
+        case 'completed':
+            filteredTasks = tasks.filter(task => task.status === 'completed');
+            break;
+        case 'my':
+            filteredTasks = tasks.filter(task => task.author === currentUser);
+            break;
+        case 'all':
+        default:
+            filteredTasks = tasks;
+            break;
+    }
+
+    // 按状态和创建时间排序
+    const sortedTasks = filteredTasks.sort((a, b) => {
+        // 先按状态排序（进行中的在前）
+        if (a.status !== b.status) {
+            return a.status === 'pending' ? -1 : 1;
+        }
+        // 再按创建时间排序（最新的在前）
+        return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+    
+    if (sortedTasks.length === 0) {
+        const filterText = {
+            'all': '暂无任务',
+            'pending': '暂无进行中的任务',
+            'completed': '暂无已完成的任务',
+            'my': '暂无我的任务'
+        };
+        tasksList.innerHTML = `<div class="no-tasks">${filterText[currentFilter] || '暂无任务'}</div>`;
         return;
     }
 
-    tasksList.innerHTML = pendingTasks.map(task => `
-        <div class="task-item" onclick="openTaskModal('${task.id}')">
+    tasksList.innerHTML = sortedTasks.map(task => `
+        <div class="task-item ${task.status}" onclick="openTaskModal('${task.id}')">
             <div class="task-header">
                 <div>
                     <div class="task-title">${escapeHtml(task.title)}</div>
@@ -205,7 +275,8 @@ function renderTasks() {
             <div class="task-content">${escapeHtml(task.content)}</div>
             <div class="task-meta">
                 <span>发布时间: ${formatDate(task.createdAt)}</span>
-                ${task.author === currentUser ? '<span style="color: #667eea;">我的任务</span>' : ''}
+                ${task.author === currentUser ? '<span style="color: #667eea; font-weight: 600;">我的任务</span>' : ''}
+                ${task.status === 'completed' ? `<span style="color: #48bb78;">完成时间: ${formatDate(task.completedAt)}</span>` : ''}
             </div>
         </div>
     `).join('');
@@ -240,6 +311,9 @@ function openTaskModal(taskId) {
         deleteTaskBtn.style.display = 'none';
     }
 
+    // 渲染评论
+    renderComments(taskId);
+    
     taskModal.style.display = 'block';
 }
 
@@ -288,12 +362,16 @@ function renderUsers() {
         return;
     }
 
-    usersList.innerHTML = filteredUsers.map(user => `
-        <div class="user-item" onclick="startChat('${escapeHtml(user)}')">
-            <span>👤</span>
-            <span>${escapeHtml(user)}</span>
-        </div>
-    `).join('');
+    usersList.innerHTML = filteredUsers.map(user => {
+        const unreadCount = getUnreadCount(user);
+        return `
+            <div class="user-item ${currentChatUser === user ? 'active' : ''}" onclick="startChat('${escapeHtml(user)}')">
+                <span>👤</span>
+                <span>${escapeHtml(user)}</span>
+                ${unreadCount > 0 ? `<span class="unread-badge">${unreadCount}</span>` : ''}
+            </div>
+        `;
+    }).join('');
 }
 
 // 过滤用户
@@ -305,6 +383,9 @@ function filterUsers() {
 function startChat(username) {
     currentChatUser = username;
     chatWithSpan.textContent = `正在与 ${username} 聊天`;
+    
+    // 清除未读消息计数
+    clearUnreadCount(username);
     
     // 更新用户列表中的选中状态
     document.querySelectorAll('.user-item').forEach(item => {
@@ -362,11 +443,16 @@ function sendMessage() {
     messages[chatKey].push(message);
     saveMessages();
 
+    // 增加接收方的未读消息计数
+    incrementUnreadCount(currentChatUser);
+
     // 清空输入框
     messageInput.value = '';
 
     // 重新渲染消息
     renderChatMessages();
+    
+    showNotification(`消息已发送给 ${currentChatUser}`, 'success');
 }
 
 // 渲染聊天消息
@@ -398,6 +484,98 @@ function getChatKey(user1, user2) {
     return [user1, user2].sort().join('_');
 }
 
+// 获取未读消息数量
+function getUnreadCount(user) {
+    if (!currentUser) return 0;
+    const chatKey = getChatKey(currentUser, user);
+    return unreadMessages[chatKey] || 0;
+}
+
+// 清除未读消息计数
+function clearUnreadCount(user) {
+    if (!currentUser) return;
+    const chatKey = getChatKey(currentUser, user);
+    unreadMessages[chatKey] = 0;
+    saveUnreadMessages();
+    renderUsers();
+}
+
+// 增加未读消息计数
+function incrementUnreadCount(user) {
+    if (!currentUser) return;
+    const chatKey = getChatKey(currentUser, user);
+    unreadMessages[chatKey] = (unreadMessages[chatKey] || 0) + 1;
+    saveUnreadMessages();
+    renderUsers();
+}
+
+// 添加评论
+function addComment() {
+    if (!currentUser) {
+        alert('请先设置用户名');
+        return;
+    }
+
+    if (!selectedTask) {
+        alert('请先选择一个任务');
+        return;
+    }
+
+    const content = commentInput.value.trim();
+    if (!content) {
+        alert('请输入评论内容');
+        return;
+    }
+
+    const comment = {
+        id: Date.now().toString(),
+        taskId: selectedTask.id,
+        author: currentUser,
+        content: content,
+        timestamp: new Date().toISOString()
+    };
+
+    // 保存评论
+    if (!comments[selectedTask.id]) {
+        comments[selectedTask.id] = [];
+    }
+    comments[selectedTask.id].push(comment);
+    saveComments();
+
+    // 清空输入框
+    commentInput.value = '';
+
+    // 重新渲染评论
+    renderComments(selectedTask.id);
+    
+    showNotification('评论发表成功！', 'success');
+}
+
+// 渲染评论
+function renderComments(taskId) {
+    if (!commentsList) return;
+
+    const taskComments = comments[taskId] || [];
+    
+    if (taskComments.length === 0) {
+        commentsList.innerHTML = '<div class="no-comments">暂无评论</div>';
+        return;
+    }
+
+    // 按时间排序（最新的在前）
+    const sortedComments = taskComments.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    commentsList.innerHTML = sortedComments.map(comment => `
+        <div class="comment-item">
+            <div class="comment-header">
+                <span class="comment-author">${escapeHtml(comment.author)}</span>
+                <span class="comment-time">${formatTime(comment.timestamp)}</span>
+            </div>
+            <div class="comment-content">${escapeHtml(comment.content)}</div>
+        </div>
+    `).join('');
+}
+
 // 数据持久化
 function saveTasks() {
     localStorage.setItem('tasks', JSON.stringify(tasks));
@@ -411,10 +589,20 @@ function saveMessages() {
     localStorage.setItem('messages', JSON.stringify(messages));
 }
 
+function saveUnreadMessages() {
+    localStorage.setItem('unreadMessages', JSON.stringify(unreadMessages));
+}
+
+function saveComments() {
+    localStorage.setItem('comments', JSON.stringify(comments));
+}
+
 function loadData() {
     tasks = JSON.parse(localStorage.getItem('tasks')) || [];
     users = JSON.parse(localStorage.getItem('users')) || [];
     messages = JSON.parse(localStorage.getItem('messages')) || {};
+    unreadMessages = JSON.parse(localStorage.getItem('unreadMessages')) || {};
+    comments = JSON.parse(localStorage.getItem('comments')) || {};
 }
 
 // 工具函数
@@ -495,4 +683,6 @@ setInterval(() => {
     saveTasks();
     saveUsers();
     saveMessages();
+    saveUnreadMessages();
+    saveComments();
 }, 30000); // 每30秒保存一次
