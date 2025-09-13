@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多人协作任务管理</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- 头部导航 -->
+        <header class="header">
+            <h1>📋 多人协作任务管理</h1>
+            <div class="user-section">
+                <input type="text" id="username" placeholder="输入用户名" maxlength="20">
+                <button id="setUsername">设置用户名</button>
+                <span id="currentUser" class="current-user"></span>
+            </div>
+        </header>
+
+        <!-- 主界面切换 -->
+        <nav class="nav-tabs">
+            <button class="tab-btn active" data-tab="tasks">📝 任务管理</button>
+            <button class="tab-btn" data-tab="chat">💬 私聊</button>
+        </nav>
+
+        <!-- 任务管理界面 -->
+        <div id="tasks-tab" class="tab-content active">
+            <div class="task-form">
+                <h2>发布新任务</h2>
+                <div class="form-group">
+                    <input type="text" id="taskTitle" placeholder="任务标题" maxlength="50">
+                </div>
+                <div class="form-group">
+                    <textarea id="taskContent" placeholder="任务描述" maxlength="500"></textarea>
+                </div>
+                <button id="addTask" class="btn-primary">发布任务</button>
+            </div>
+
+            <div class="tasks-section">
+                <h2>任务列表</h2>
+                <div id="tasksList" class="tasks-list">
+                    <!-- 任务将在这里动态生成 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 私聊界面 -->
+        <div id="chat-tab" class="tab-content">
+            <div class="chat-section">
+                <h2>选择聊天对象</h2>
+                <div class="user-list">
+                    <input type="text" id="searchUser" placeholder="搜索用户">
+                    <div id="usersList" class="users-list">
+                        <!-- 用户列表将在这里动态生成 -->
+                    </div>
+                </div>
+                
+                <div class="chat-container">
+                    <div class="chat-header">
+                        <span id="chatWith">选择一个用户开始聊天</span>
+                        <button id="closeChat" class="btn-close">✕</button>
+                    </div>
+                    <div id="chatMessages" class="chat-messages">
+                        <!-- 聊天消息将在这里显示 -->
+                    </div>
+                    <div class="chat-input">
+                        <input type="text" id="messageInput" placeholder="输入消息..." maxlength="200">
+                        <button id="sendMessage" class="btn-primary">发送</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 任务详情模态框 -->
+    <div id="taskModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">任务详情</h3>
+                <button id="closeModal" class="btn-close">✕</button>
+            </div>
+            <div class="modal-body">
+                <div id="modalContent"></div>
+                <div class="modal-actions">
+                    <button id="completeTask" class="btn-success">标记完成</button>
+                    <button id="deleteTask" class="btn-danger">删除任务</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
