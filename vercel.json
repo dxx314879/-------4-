@@ -9,5 +9,6 @@
       "source": "/socket.io/(.*)",
       "destination": "/api/socket"
     }
-  ]
+  ],
+  "outputDirectory": "public"
 }
